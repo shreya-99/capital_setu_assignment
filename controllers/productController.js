@@ -1,69 +1,73 @@
 const Product = require('../models/product');
 
 const createProduct = async (req, res) => {
-    const { name, size, image, colour, price, quantity } = req.body;
-
+    // Create a new product
     try {
-        // Create a new product
-        const newProduct = new Product({ name, size, image, colour, price, quantity });
-        await newProduct.save();
-
-        res.status(201).json({ message: 'Product created successfully' });
+        const product = new Product(req.body);
+        await product.save();
+        res.status(201).json(product);
     } catch (error) {
-        console.error('Error creating product:', error);
+        console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
 const readProducts = async (req, res) => {
     try {
-        // Read products
-        const products = await Product.find();
+        const { name, page } = req.query;
+        const limit = page > 1 ? 12 : 10;
+        const skip = (page - 1) * limit;
+
+        let query = Product.find();
+
+        // Apply search filter
+        if (name) {
+            query = query.regex('name', new RegExp(name, 'i'));
+        }
+
+        // Apply pagination
+        query = query.skip(skip).limit(limit);
+
+        // Execute the query and retrieve products
+        const products = await query.exec();
 
         res.json(products);
     } catch (error) {
-        console.error('Error reading products:', error);
+        console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
 const updateProduct = async (req, res) => {
-    const productId = req.params.id;
-    const { name, size, image, colour, price, quantity } = req.body;
+    const { id } = req.params;
 
     try {
-        // Update the product details
-        const updatedProduct = await Product.findByIdAndUpdate(
-            productId,
-            { name, size, image, colour, price, quantity },
-            { new: true }
-        );
+        const product = await Product.findByIdAndUpdate(id, req.body, { new: true });
 
-        if (!updatedProduct) {
+        if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        res.json(updatedProduct);
+        res.json(product);
     } catch (error) {
-        console.error('Error updating product:', error);
+        console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
 const deleteProduct = async (req, res) => {
-    const productId = req.params.id;
+    const { id } = req.params;
 
     try {
-        // Delete the product
-        const deletedProduct = await Product.findByIdAndDelete(productId);
+        const product = await Product.findByIdAndDelete(id);
 
-        if (!deletedProduct) {
+        if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
         res.json({ message: 'Product deleted successfully' });
     } catch (error) {
-        console.error('Error deleting product:', error);
+        console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
