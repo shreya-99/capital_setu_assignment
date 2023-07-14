@@ -1,11 +1,60 @@
 const Product = require('../models/product');
+const multer = require('multer');
+
+// Configure Multer for file upload
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/');
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+        cb(null, true);
+    } else {
+        cb(new Error('Only JPG or PNG images are allowed'), false);
+    }
+};
+
+const upload = multer({ storage, fileFilter }).array('images', 5);
 
 const createProduct = async (req, res) => {
-    // Create a new product
     try {
-        const product = new Product(req.body);
-        await product.save();
-        res.status(201).json(product);
+        const { name, size, color, price, quantity } = req.body;
+
+        upload(req, res, async function (err) {
+            if (err instanceof multer.MulterError) {
+                return res.status(400).json({ message: 'Error uploading files' });
+            } else if (err) {
+                return res.status(500).json({ message: 'Internal server error' });
+            }
+
+            // Validate file size and type
+            const { files } = req;
+            if (!files || files.length === 0) {
+                return res.status(400).json({ message: 'Please upload at least one image' });
+            }
+
+            const images = files.map(file => file.filename);
+
+            // Create a new product
+            const product = new Product({
+                name,
+                size,
+                color,
+                price,
+                quantity,
+                images
+            });
+
+            await product.save();
+
+            res.status(201).json(product);
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
