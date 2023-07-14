@@ -22,24 +22,31 @@ const signUp = async (req, res) => {
 };
 
 const login = async (req, res) => {
-    const { mobile } = req.body;
-
     try {
-        // Check if user with the given mobile number exists
-        const existingUser = await User.findOne({ mobile });
-        if (!existingUser) {
-            return res.status(401).json({ message: 'Invalid mobile number' });
+        const { mobileNumber, password } = req.body;
+
+        // Find the user by mobile number
+        const user = await User.findOne({ mobileNumber });
+
+        // Check if the user exists
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
 
-        // Generate and return JWT token
-        const token = generateToken(existingUser);
+        // Check if the password matches
+        if (user.password !== password) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
 
-        res.json({ token });
+        // Generate JWT token
+        const token = generateToken(user);
+        res.json({ token, role: user.role });
     } catch (error) {
-        console.error('Error logging in:', error);
+        console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 module.exports = {
     signUp,
